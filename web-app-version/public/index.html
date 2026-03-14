@@ -12,12 +12,94 @@
 
   <header>
     <h1>Elevator<span>.</span>Sim</h1>
-    <label class="switch">
-      <input type="checkbox" id="modeToggle">
-      <span class="slider round"></span>
-      <span class="mode-label">Light</span>
-    </label>
+    <div class="header-controls">
+      <!-- Settings button -->
+      <button id="settingsBtn" class="icon-btn" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+      <!-- Dark/light toggle -->
+      <label class="switch">
+        <input type="checkbox" id="modeToggle">
+        <span class="slider round"></span>
+        <span class="mode-label">Light</span>
+      </label>
+    </div>
   </header>
+
+  <!-- ── SETTINGS MODAL ── -->
+  <div id="settingsOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button id="settingsClose" class="icon-btn">✕</button>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="setting-section">
+          <div class="setting-section-title">Building</div>
+          <div class="setting-row">
+            <label for="settingFloors">Number of Floors</label>
+            <div class="setting-control">
+              <input type="number" id="settingFloors" min="2" max="20" value="10">
+              <span class="setting-unit">floors</span>
+            </div>
+          </div>
+          <p class="setting-desc">Changing floors resets the simulation.</p>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">Animation</div>
+          <div class="setting-row">
+            <label for="settingSpeed">Floor Travel Time</label>
+            <div class="setting-control">
+              <input type="range" id="settingSpeed" min="100" max="1200" step="50" value="420">
+              <span class="setting-unit" id="settingSpeedLabel">420ms</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">Level 6 — Lobby Return</div>
+          <div class="setting-row">
+            <label for="settingLobbyReturn">Return to lobby before noon</label>
+            <label class="toggle-pill">
+              <input type="checkbox" id="settingLobbyReturn" checked>
+              <span class="pill-track"><span class="pill-thumb"></span></span>
+            </label>
+          </div>
+          <div class="setting-row">
+            <label for="settingNoonHour">Noon cutoff hour (24h)</label>
+            <div class="setting-control">
+              <input type="number" id="settingNoonHour" min="0" max="23" value="12">
+              <span class="setting-unit">:00</span>
+            </div>
+          </div>
+          <p class="setting-desc">If enabled and time is before the cutoff, the elevator returns to F0 after the last drop-off.</p>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">Level 7 — Dispatch Algorithm</div>
+          <div class="setting-row">
+            <label>Algorithm</label>
+            <select id="settingAlgorithm">
+              <option value="sequential">Sequential (L4 — one by one)</option>
+              <option value="nearest">Nearest-first (L7 — efficient)</option>
+            </select>
+          </div>
+          <p class="setting-desc">Nearest-first picks the closest waiting passenger next, minimising total floors traversed.</p>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="settingsApply">Apply &amp; Reset</button>
+      </div>
+    </div>
+  </div>
 
   <div id="container">
 
@@ -36,10 +118,12 @@
       <div id="building"></div>
     </div>
 
-    <!-- RIGHT: HISTORY -->
+    <!-- RIGHT: DROPPED OFF PANEL -->
     <div class="panel" id="history">
-      <div class="panel-header">Completed Trips</div>
-      <ul id="historyList"></ul>
+      <div class="panel-header">Dropped Off</div>
+      <div id="floorStacks">
+        <div class="stack-empty">No drop-offs yet</div>
+      </div>
       <div id="statusBar">
         <div class="dot idle" id="statusDot"></div>
         <span id="statusText">Idle — Floor 0</span>
@@ -48,7 +132,42 @@
 
   </div>
 
-  <!-- ES modules: app.js imports elevator.js and person.js -->
+  <!-- ── FLOOR PASSENGER MODAL ── -->
+  <div id="floorModalOverlay" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="floorModalTitle">Floor</span>
+        <button id="floorModalClose" class="icon-btn">✕</button>
+      </div>
+      <div class="modal-body" id="floorModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ── PASSENGER LOOKUP MODAL ── -->
+  <div id="passengerLookupOverlay" class="modal-overlay hidden">
+    <div class="modal modal--wide">
+      <div class="modal-header">
+        <span class="modal-title">Passengers on Floors</span>
+        <button id="passengerLookupClose" class="icon-btn">✕</button>
+      </div>
+      <div class="plookup-body" id="passengerLookupBody"></div>
+    </div>
+  </div>
+
+  <!-- ── FLOOR PICKER MODAL ── -->
+  <div id="floorPickerOverlay" class="modal-overlay hidden">
+    <div class="modal modal--wide">
+      <div class="modal-header">
+        <div>
+          <span class="modal-title" id="floorPickerTitle">Select Pickup Floor</span>
+          <span class="modal-subtitle" id="floorPickerSubtitle"></span>
+        </div>
+        <button id="floorPickerClose" class="icon-btn">✕</button>
+      </div>
+      <div class="floor-picker-body" id="floorPickerBody"></div>
+    </div>
+  </div>
+
   <script type="module" src="app.js"></script>
 
 </body>
