@@ -522,82 +522,94 @@ addBtn.onclick = () => {
 
     // Build one column per floor (highest first)
     for (let f = settings.totalFloors - 1; f >= 0; f--) {
-      const isLocked   = !isPickup && String(f) === String(lockedFloor);
-      const col        = document.createElement("div");
-      col.className    = "fp-col" + (isLocked ? " fp-col--locked" : "");
+      const isLocked  = !isPickup && String(f) === String(lockedFloor);
+      const isSelected = isPickup
+        ? String(f) === String(card.dataset.current)
+        : String(f) === String(card.dataset.drop);
 
-      // Floor header button
-      const floorBtn   = document.createElement("button");
-      floorBtn.className   = "fp-floor-btn";
-      floorBtn.disabled    = isLocked;
-      floorBtn.innerHTML   = `<span class="fp-fn">${f === 0 ? "Lobby" : `F${f}`}</span>`;
+      const col = document.createElement("div");
+      col.className = "fp-col"
+        + (isLocked   ? " fp-col--locked"   : "")
+        + (isSelected ? (isPickup ? " fp-col--pickup" : " fp-col--dropoff") : "");
 
       if (!isLocked) {
-        floorBtn.onclick = () => {
-          if (isPickup) {
-            // Clear old waiting avatar
-            if (card.dataset.current !== "") {
-              const old = document.getElementById(`waiting-${card.dataset.current}`);
-              const oldAv = old && old.querySelector(`[data-pid="${pid}"]`);
-              if (oldAv) oldAv.remove();
-              // Also clear dropoff if pickup changes
-              card.dataset.drop = "";
-              document.getElementById(`fpv-dropoff-${pid}`).textContent = "—";
-              dropoffBtn.classList.remove("floor-pick-btn--set");
-            }
-            card.dataset.current = f;
-            document.getElementById(`fpv-pickup-${pid}`).textContent = f === 0 ? "Lobby" : `F${f}`;
-            pickupBtn.classList.add("floor-pick-btn--set");
-
-            // Spawn waiting avatar
-            const waitDiv = document.getElementById(`waiting-${f}`);
-            if (waitDiv && !waitDiv.querySelector(`[data-pid="${pid}"]`)) {
-              const av  = document.createElement("div");
-              av.className        = "waiting-avatar";
-              av.dataset.pid      = pid;
-              av.style.background = color;
-              av.innerHTML        = personSVG();
-              const tag = document.createElement("div");
-              tag.className   = "tag";
-              tag.textContent = nameInput.value || `P${pid}`;
-              av.appendChild(tag);
-              waitDiv.appendChild(av);
-              nameInput.addEventListener("input", () => {
-                tag.textContent = nameInput.value || `P${pid}`;
-              });
-            }
-          } else {
-            card.dataset.drop = f;
-            document.getElementById(`fpv-dropoff-${pid}`).textContent = f === 0 ? "Lobby" : `F${f}`;
-            dropoffBtn.classList.add("floor-pick-btn--set");
-          }
-
-          // Update hint
-          const cur  = card.dataset.current;
-          const drop = card.dataset.drop;
-          if (cur !== "" && drop !== "") {
-            hint.innerHTML = `<span class="pick">↑ F${cur}</span> → <span class="drop">↓ F${drop}</span>`;
-          } else if (cur !== "") {
-            hint.innerHTML = `<span class="pick">↑ Pickup: F${cur}</span> · <span style="color:var(--muted)">Select dropoff</span>`;
-          }
-
-          overlay.classList.add("hidden");
+        col.classList.add("fp-col--clickable");
+        col.onclick = (e) => {
+          // Don't double-fire if a child button was clicked (they call selectFloor directly)
+          if (e.target.closest(".fp-floor-btn, .fp-prow")) return;
+          selectFloor();
         };
       }
 
+      // ── shared select handler ──────────────────────────────────────────
+      function selectFloor() {
+        if (isPickup) {
+          if (card.dataset.current !== "") {
+            const old   = document.getElementById(`waiting-${card.dataset.current}`);
+            const oldAv = old && old.querySelector(`[data-pid="${pid}"]`);
+            if (oldAv) oldAv.remove();
+            card.dataset.drop = "";
+            document.getElementById(`fpv-dropoff-${pid}`).textContent = "—";
+            dropoffBtn.classList.remove("floor-pick-btn--set");
+          }
+          card.dataset.current = f;
+          document.getElementById(`fpv-pickup-${pid}`).textContent = f === 0 ? "Lobby" : `F${f}`;
+          pickupBtn.classList.add("floor-pick-btn--set");
+
+          const waitDiv = document.getElementById(`waiting-${f}`);
+          if (waitDiv && !waitDiv.querySelector(`[data-pid="${pid}"]`)) {
+            const av  = document.createElement("div");
+            av.className        = "waiting-avatar";
+            av.dataset.pid      = pid;
+            av.style.background = color;
+            av.innerHTML        = personSVG();
+            const tag = document.createElement("div");
+            tag.className   = "tag";
+            tag.textContent = nameInput.value || `P${pid}`;
+            av.appendChild(tag);
+            waitDiv.appendChild(av);
+            nameInput.addEventListener("input", () => {
+              tag.textContent = nameInput.value || `P${pid}`;
+            });
+          }
+        } else {
+          card.dataset.drop = f;
+          document.getElementById(`fpv-dropoff-${pid}`).textContent = f === 0 ? "Lobby" : `F${f}`;
+          dropoffBtn.classList.add("floor-pick-btn--set");
+        }
+
+        const cur  = card.dataset.current;
+        const drop = card.dataset.drop;
+        if (cur !== "" && drop !== "") {
+          hint.innerHTML = `<span class="pick">↑ F${cur}</span> → <span class="drop">↓ F${drop}</span>`;
+        } else if (cur !== "") {
+          hint.innerHTML = `<span class="pick">↑ Pickup: F${cur}</span> · <span style="color:var(--muted)">Select dropoff</span>`;
+        }
+
+        overlay.classList.add("hidden");
+      }
+
+      // ── floor header button ────────────────────────────────────────────
+      const floorBtn = document.createElement("button");
+      floorBtn.className = "fp-floor-btn";
+      floorBtn.disabled  = isLocked;
+      floorBtn.innerHTML = `<span class="fp-fn">${f === 0 ? "Lobby" : `F${f}`}</span>`;
+      if (!isLocked) floorBtn.onclick = selectFloor;
       col.appendChild(floorBtn);
 
-      // Passenger list for this floor (dropped off passengers)
+      // ── passenger rows (clickable, same action) ────────────────────────
       const stack = getFloorStack(f);
       if (stack.length) {
         const pList = document.createElement("div");
         pList.className = "fp-plist";
         stack.slice().reverse().forEach(p => {
-          const pRow = document.createElement("div");
+          const pRow = document.createElement("button");
           pRow.className = "fp-prow";
+          pRow.disabled  = isLocked;
           pRow.innerHTML = `
             <div class="fp-dot" style="background:${p.color}">${personSVG()}</div>
             <span class="fp-pname">${p.name}</span>`;
+          if (!isLocked) pRow.onclick = selectFloor;
           pList.appendChild(pRow);
         });
         col.appendChild(pList);
