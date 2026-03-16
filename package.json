@@ -1,8 +1,6 @@
 {
   "name": "elevator-simulation",
   "version": "1.0.0",
-  "type": "module",
-  "main": "api/index.js",
   "scripts": {
     "start": "node web-app-version/server/index.js",
     "dev":   "node --watch web-app-version/server/index.js",
