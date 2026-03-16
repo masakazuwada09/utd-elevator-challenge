@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.js",
+      "src": "api/index.cjs",
       "use": "@vercel/node"
     },
     {
@@ -13,8 +13,8 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.js",
-      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+      "dest": "/api/index.cjs",
+      "methods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
     },
     {
       "src": "/(.*)",
